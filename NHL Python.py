@@ -8,22 +8,6 @@ import numpy as np
 from openpyxl import load_workbook
 from datetime import date 
 
-response = requests.get("https://moneypuck.com/moneypuck/playerData/seasonSummary/2021/regular/skaters.csv")
-s=str(response.content,'utf-8')
-
-data = StringIO(s) 
-
-df=pd.read_csv(data)
-
-# This will calc the percentage of a players shots are in what danger catagorey after being blocked
-low_danger_shot_per = df['I_F_lowDangerShots'] / (df['I_F_shotAttempts'] - df['I_F_blockedShotAttempts'])
-med_danger_shot_per = df['I_F_mediumDangerShots'] / (df['I_F_shotAttempts'] - df['I_F_blockedShotAttempts'])
-high_danger_shot_per = df['I_F_highDangerShots'] / (df['I_F_shotAttempts'] - df['I_F_blockedShotAttempts'])
-df['low_dng_shot_per'] = low_danger_shot_per
-df['med_dng_shot_per'] = med_danger_shot_per
-df['high_dng_shot_per'] = high_danger_shot_per
-
-
 #player basis
 def player_data(team1, team2):
     response = requests.get("https://moneypuck.com/moneypuck/playerData/seasonSummary/2021/regular/skaters.csv")
@@ -204,7 +188,7 @@ def all_games(home_teams,away_teams,home_goalie,away_goalie):
     print(df)
         
     
-    
+###########################################END OF MAIN FUNCTION##########################################################
     
 #On a team basis
 response2 = requests.get("https://moneypuck.com/moneypuck/playerData/seasonSummary/2021/regular/teams.csv")
