@@ -19,7 +19,7 @@ def player_data(team1, team2):
     df = df[(df['team'] == team1) | (df['team'] == team2)]
     #df['icetime_per'] = df['icetime'] / (df['games_played'] * 60 * 60)
     df['icetime_per'] = df['icetime'] / (df['timeOnBench'] + df['icetime']) 
-    df['shots_per_min'] = ((df['I_F_shotAttempts'] - df['I_F_rebounds']) / (df['icetime']/60)) * df['icetime_per'] 
+    df['shots_per_min'] = ((df['I_F_shotAttempts'] - df['I_F_rebounds']) / (df['icetime']/60)) * df['icetime_per']
     df['blocks_per_min'] = (df['shotsBlockedByPlayer'] / (df['icetime']/60)) * df['icetime_per'] 
     df['misses_per_min'] = (df['I_F_missedShots'] / (df['icetime']/60)) * df['icetime_per'] 
     df['rebshots_per_min'] = (df['I_F_rebounds'] / (df['icetime']/60)) * df['icetime_per'] 
@@ -118,7 +118,7 @@ def use_player_stats(team1,team2, team1_goalie, team2_goalie):
     
     tm1_goals = tm1_sog * (1- team2_goalie) + reb_goals_1
     tm2_goals = tm2_sog * (1- team1_goalie) + reb_goals_2 
-    
+
     return tm1_goals, tm2_goals 
     
     
@@ -127,13 +127,23 @@ def all_games(home_teams,away_teams,home_goalie,away_goalie):
     away_team = []
     home_goal = []
     away_goal = []
-    for i in range(len(home_teams)):
-        home_goals, away_goals = use_player_stats(home_teams[i],away_teams[i], home_goalie[i], away_goalie[i])
+    style = input("Would you like the sheet style or powerplay style? (Enter: the sheet/powerplay)")
+    if style == "the sheet":
+        for i in range(len(home_teams)):
+            home_goals, away_goals = the_sheet_style(home_teams[i],away_teams[i], home_goalie[i], away_goalie[i])
         
-        home_team.append(home_teams[i])
-        away_team.append(away_teams[i])
-        home_goal.append(home_goals)
-        away_goal.append(away_goals)
+            home_team.append(home_teams[i])
+            away_team.append(away_teams[i])
+            home_goal.append(home_goals)
+            away_goal.append(away_goals)
+    elif style == "powerplay":  
+        for i in range(len(home_teams)):
+            home_goals, away_goals = use_player_stats(home_teams[i],away_teams[i], home_goalie[i], away_goalie[i])
+        
+            home_team.append(home_teams[i])
+            away_team.append(away_teams[i])
+            home_goal.append(home_goals)
+            away_goal.append(away_goals)
     df = pd.DataFrame()
     df['Home Team'] = home_team
     df['Away Team'] = away_team
@@ -153,9 +163,9 @@ def all_games(home_teams,away_teams,home_goalie,away_goalie):
         for i in range(len(home_score)):
             if home_score[i] > away_score[i]:
                 home_win += 1
-            if away_score[i] > home_score[i]:
+            elif away_score[i] > home_score[i]:
                 away_win += 1
-            if away_score[i] == home_score[i]:
+            elif away_score[i] == home_score[i]:
                 tie += 1
         home_w_per = (home_win + (tie/2)) / 10000
         away_w_per = (away_win + (tie/2)) / 10000
@@ -184,12 +194,51 @@ def all_games(home_teams,away_teams,home_goalie,away_goalie):
     d4 = today.strftime("%b-%d-%Y")
 
     with pd.ExcelWriter('hockey_predictions.xlsx',engine='openpyxl', mode='a') as writer:  
-        df.to_excel(writer, sheet_name=d4)
+        df.to_excel(writer, sheet_name="d4")
     print(df)
         
     
 ###########################################END OF MAIN FUNCTION##########################################################
+
+
+#Like the sheeeeeeeeeeeeeeeeet style
+def the_sheet_style(team1, team2, team1_goalie, team2_goalie):
+    response = requests.get("https://moneypuck.com/moneypuck/playerData/seasonSummary/2021/regular/skaters.csv")
+    s=str(response.content,'utf-8')
+
+    data = StringIO(s) 
+
+    df=pd.read_csv(data)
+    df = df[(df['team'] == team1) | (df['team'] == team2)]
+    df = df[df['situation'] == 'all']
     
+    df['shots_per_game'] = df['I_F_shotAttempts'] / df['games_played']
+    df['misses_per_game'] = df['I_F_missedShots'] / df['games_played']
+    df['shots_blocked_per_game'] = df['shotsBlockedByPlayer'] / df['games_played']
+    df['icetime_weight'] = df['icetime'] / df['games_played']
+    
+    #cut down
+    tm1 = df[df['team'] == team1]
+    tm2 = df[df['team'] == team2]
+    
+    #sort values 
+    tm1 = tm1.sort_values(by=['icetime_weight'],ascending=False)
+    tm2 = tm2.sort_values(by=['icetime_weight'],ascending=False)
+    
+    #calc per game values 
+    tm1_shots = tm1['shots_per_game'].iloc[0:18].sum()
+    tm1_shots_missed = tm1['misses_per_game'].iloc[0:18].sum()
+    tm1_shots_blocked = tm1['shots_blocked_per_game'].iloc[0:18].sum()
+    
+    #shots blocked per game
+    tm2_shots = tm2['shots_per_game'].iloc[0:18].sum()
+    tm2_shots_missed = tm2['misses_per_game'].iloc[0:18].sum()
+    tm2_shots_blocked = tm2['shots_blocked_per_game'].iloc[0:18].sum()
+    
+    tm1_goals = (tm1_shots - tm1_shots_missed - tm2_shots_blocked) * (1 - team2_goalie)
+    tm2_goals = (tm2_shots - tm2_shots_missed - tm1_shots_blocked) * (1 - team1_goalie)
+    
+    return tm1_goals, tm2_goals 
 #On a team basis
 response2 = requests.get("https://moneypuck.com/moneypuck/playerData/seasonSummary/2021/regular/teams.csv")
 s2=str(response2.content,'utf-8')
